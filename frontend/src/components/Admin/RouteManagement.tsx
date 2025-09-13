@@ -1,18 +1,43 @@
-import React, { useState } from "react";
-import { useBus } from "../../contexts/BusContext";
-import { MapPin, Plus, Edit, Trash2, Save, X, Route as RouteIcon } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import {
+  MapPin,
+  Plus,
+  Edit,
+  Trash2,
+  Save,
+  X,
+  Route as RouteIcon,
+} from "lucide-react";
+
+const API_URL = "http://localhost:5000/api/routes";
 
 const RouteManagement: React.FC = () => {
+  const [routes, setRoutes] = useState<any[]>([]);
   const [isCreating, setIsCreating] = useState(false);
-  const [editingRoute, setEditingRoute] = useState<string | null>(null);
-  const { routes } = useBus();
+  const [editingRouteId, setEditingRouteId] = useState<string | null>(null);
 
   const [newRoute, setNewRoute] = useState({
     routeNumber: "",
     routeName: "",
+    isActive: true,
     stops: [{ name: "", location: { lat: 0, lng: 0 } }],
   });
 
+  useEffect(() => {
+    fetchRoutes();
+  }, []);
+
+  const fetchRoutes = async () => {
+    try {
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      setRoutes(data.routes || []);
+    } catch (err) {
+      console.error("Fetch routes error:", err);
+    }
+  };
+
+  // stops
   const handleAddStop = () => {
     setNewRoute((prev) => ({
       ...prev,
@@ -50,52 +75,108 @@ const RouteManagement: React.FC = () => {
     }));
   };
 
-  const handleSaveRoute = () => {
-    console.log("Saving route:", newRoute);
+  // create / update
+  const handleSaveRoute = async () => {
+    try {
+      if (editingRouteId) {
+        const res = await fetch(`${API_URL}/${editingRouteId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newRoute),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setRoutes((prev) =>
+            prev.map((r) => (r._id === editingRouteId ? data.route : r))
+          );
+          resetForm();
+        } else {
+          alert(data.error || "Failed to update route");
+        }
+      } else {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newRoute),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setRoutes((prev) => [...prev, data.route]);
+          resetForm();
+        } else {
+          alert(data.error || "Failed to create route");
+        }
+      }
+    } catch (err) {
+      console.error("Save route error:", err);
+    }
+  };
+
+  const handleDeleteRoute = async (routeId: string) => {
+    try {
+      const res = await fetch(`${API_URL}/${routeId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (res.ok) {
+        setRoutes((prev) => prev.filter((r) => r._id !== routeId));
+      } else {
+        alert(data.error || "Failed to delete route");
+      }
+    } catch (err) {
+      console.error("Delete route error:", err);
+    }
+  };
+
+  const handleEditRoute = (route: any) => {
+    setEditingRouteId(route._id);
+    setNewRoute({
+      routeNumber: route.routeNumber,
+      routeName: route.routeName,
+      isActive: route.isActive ?? true,
+      stops: route.stops.map((s: any) => ({
+        name: s.name,
+        location: { lat: s.location.lat, lng: s.location.lng },
+      })),
+    });
+    setIsCreating(true);
+  };
+
+  const resetForm = () => {
     setIsCreating(false);
+    setEditingRouteId(null);
     setNewRoute({
       routeNumber: "",
       routeName: "",
+      isActive: true,
       stops: [{ name: "", location: { lat: 0, lng: 0 } }],
     });
   };
 
-  const handleCancelCreate = () => {
-    setIsCreating(false);
-    setNewRoute({
-      routeNumber: "",
-      routeName: "",
-      stops: [{ name: "", location: { lat: 0, lng: 0 } }],
-    });
-  };
-
+  // -------- UI --------
   if (isCreating) {
     return (
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <h3 className="text-xl font-semibold text-gray-900">
-            Create New Route
+            {editingRouteId ? "Edit Route" : "Create New Route"}
           </h3>
           <div className="flex space-x-3">
             <button
-              onClick={handleCancelCreate}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors flex items-center space-x-2"
+              onClick={resetForm}
+              className="px-4 py-2 text-gray-600 hover:text-gray-800 flex items-center space-x-2"
             >
               <X className="w-4 h-4" />
               <span>Cancel</span>
             </button>
             <button
               onClick={handleSaveRoute}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center space-x-2"
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center space-x-2"
             >
               <Save className="w-4 h-4" />
-              <span>Save Route</span>
+              <span>{editingRouteId ? "Update Route" : "Save Route"}</span>
             </button>
           </div>
         </div>
 
-        {/* Form */}
         <div className="bg-white border border-gray-200 rounded-xl p-6">
           <div className="grid md:grid-cols-2 gap-6 mb-6">
             <div>
@@ -134,7 +215,7 @@ const RouteManagement: React.FC = () => {
             </div>
           </div>
 
-          {/* Stops */}
+          {/* stops */}
           <div>
             <div className="flex items-center justify-between mb-4">
               <label className="block text-sm font-medium text-gray-700">
@@ -142,7 +223,7 @@ const RouteManagement: React.FC = () => {
               </label>
               <button
                 onClick={handleAddStop}
-                className="px-3 py-2 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-colors flex items-center space-x-2"
+                className="px-3 py-2 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 flex items-center space-x-2"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Stop</span>
@@ -166,19 +247,17 @@ const RouteManagement: React.FC = () => {
                         handleStopChange(index, "name", e.target.value)
                       }
                       placeholder={`Stop ${index + 1} name`}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                     />
                     {newRoute.stops.length > 1 && (
                       <button
                         onClick={() => handleRemoveStop(index)}
-                        className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     )}
                   </div>
-
-                  {/* Lat & Lng fields */}
                   <div className="grid grid-cols-2 gap-3 pl-11">
                     <input
                       type="text"
@@ -188,7 +267,7 @@ const RouteManagement: React.FC = () => {
                         handleStopChange(index, "lat", e.target.value)
                       }
                       placeholder="Enter latitude"
-                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                     />
                     <input
                       type="text"
@@ -198,7 +277,7 @@ const RouteManagement: React.FC = () => {
                         handleStopChange(index, "lng", e.target.value)
                       }
                       placeholder="Enter longitude"
-                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                     />
                   </div>
                 </div>
@@ -210,14 +289,23 @@ const RouteManagement: React.FC = () => {
     );
   }
 
-  // Route List View
+  // list view
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-semibold text-gray-900">Route Management</h3>
         <button
-          onClick={() => setIsCreating(true)}
-          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center space-x-2"
+          onClick={() => {
+            setIsCreating(true);
+            setEditingRouteId(null);
+            setNewRoute({
+              routeNumber: "",
+              routeName: "",
+              isActive: true,
+              stops: [{ name: "", location: { lat: 0, lng: 0 } }],
+            });
+          }}
+          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center space-x-2"
         >
           <Plus className="w-4 h-4" />
           <span>Add New Route</span>
@@ -227,7 +315,7 @@ const RouteManagement: React.FC = () => {
       <div className="grid gap-6">
         {routes.map((route) => (
           <div
-            key={route.id}
+            key={route._id}
             className="bg-white border border-gray-200 rounded-xl p-6"
           >
             <div className="flex items-center justify-between mb-4">
@@ -253,10 +341,16 @@ const RouteManagement: React.FC = () => {
                 >
                   {route.isActive ? "Active" : "Inactive"}
                 </span>
-                <button className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
+                <button
+                  onClick={() => handleEditRoute(route)}
+                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+                >
                   <Edit className="w-4 h-4" />
                 </button>
-                <button className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg">
+                <button
+                  onClick={() => handleDeleteRoute(route._id)}
+                  className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg"
+                >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -269,9 +363,9 @@ const RouteManagement: React.FC = () => {
                   Route Stops ({route.stops.length})
                 </h5>
                 <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {route.stops.map((stop, index) => (
+                  {route.stops.map((stop: any, index: number) => (
                     <div
-                      key={stop.id}
+                      key={index}
                       className="flex items-center space-x-3 p-2 bg-gray-50 rounded-lg"
                     >
                       <div className="w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
