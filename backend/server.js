@@ -9,6 +9,7 @@ const busRoutes = require("./routes/bus");
 const routeRoutes = require("./routes/route");
 const ticketRoutes = require("./routes/ticket");
 const alertRoutes = require("./routes/alert");
+const userRoutes = require("./routes/user");
 
 dotenv.config();
 connectDB();
@@ -28,6 +29,7 @@ app.use("/api/buses", busRoutes);
 app.use("/api/routes", routeRoutes);
 app.use("/api/tickets", ticketRoutes);
 app.use("/api/alerts", alertRoutes);
+app.use("/api/users", userRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
