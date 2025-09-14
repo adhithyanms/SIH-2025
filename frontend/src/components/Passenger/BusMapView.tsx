@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bus, Route } from '../../types';
+import { Bus, Route } from '../../types/index';
 import { ArrowLeft, MapPin, Navigation, Clock, Users } from 'lucide-react';
 
 interface BusMapViewProps {
@@ -9,9 +9,10 @@ interface BusMapViewProps {
 }
 
 const BusMapView: React.FC<BusMapViewProps> = ({ bus, route, onBack }) => {
+  console.log(bus,route);
   const currentStopIndex = route.stops.findIndex(stop => stop.name === bus.currentStop);
   const nextStopIndex = currentStopIndex + 1;
-
+  
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
