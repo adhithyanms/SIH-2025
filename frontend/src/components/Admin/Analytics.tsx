@@ -1,47 +1,41 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useBus } from '../../contexts/BusContext';
-import { BarChart3, TrendingUp, Users, Clock, MapPin, Calendar } from 'lucide-react';
+import { BarChart3, TrendingUp, Users, Clock, MapPin } from 'lucide-react';
+import apiService from '../../services/api';
 
 const Analytics: React.FC = () => {
-  const { buses, routes } = useBus();
+  const { routes } = useBus();
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
 
-  // Mock analytics data
-  const analyticsData = {
-    dailyRidership: [
-      { day: 'Mon', passengers: 1250 },
-      { day: 'Tue', passengers: 1380 },
-      { day: 'Wed', passengers: 1420 },
-      { day: 'Thu', passengers: 1310 },
-      { day: 'Fri', passengers: 1680 },
-      { day: 'Sat', passengers: 950 },
-      { day: 'Sun', passengers: 850 }
-    ],
-    routeEfficiency: routes.map(route => ({
-      route: route.routeNumber,
-      name: route.routeName,
-      avgPassengers: Math.floor(Math.random() * 40) + 10,
-      onTimePercentage: Math.floor(Math.random() * 20) + 75,
-      revenue: Math.floor(Math.random() * 5000) + 3000
-    })),
-    peakHours: [
-      { hour: '6 AM', load: 45 },
-      { hour: '7 AM', load: 85 },
-      { hour: '8 AM', load: 95 },
-      { hour: '9 AM', load: 75 },
-      { hour: '10 AM', load: 40 },
-      { hour: '5 PM', load: 80 },
-      { hour: '6 PM', load: 90 },
-      { hour: '7 PM', load: 70 }
-    ]
-  };
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        const data = await apiService.getAnalytics();
+        setAnalyticsData(data);
+      } catch (err) {
+        console.error("Failed to load analytics:", err);
+      }
+    };
+    fetchAnalytics();
+  }, []);
 
-  const totalRevenue = analyticsData.routeEfficiency.reduce((sum, route) => sum + route.revenue, 0);
-  const avgOnTime = analyticsData.routeEfficiency.reduce((sum, route) => sum + route.onTimePercentage, 0) / analyticsData.routeEfficiency.length;
+  if (!analyticsData) {
+    return <div className="p-6">Loading analytics...</div>;
+  }
+
+  const totalRevenue = analyticsData.routeEfficiency.reduce(
+    (sum: number, route: any) => sum + route.revenue,
+    0
+  );
+  const avgOnTime =
+    analyticsData.routeEfficiency.reduce(
+      (sum: number, route: any) => sum + route.onTimePercentage,
+      0
+    ) / analyticsData.routeEfficiency.length;
 
   return (
     <div className="space-y-8">
-      {/* KPI Cards */}
-      <div className="grid md:grid-cols-4 gap-6">
+        <div className="grid md:grid-cols-4 gap-6">
         <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-6">
           <div className="flex items-center justify-between mb-4">
             <Users className="w-8 h-8 text-blue-600" />

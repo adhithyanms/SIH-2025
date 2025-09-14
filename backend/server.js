@@ -10,6 +10,7 @@ const routeRoutes = require("./routes/route");
 const ticketRoutes = require("./routes/ticket");
 const alertRoutes = require("./routes/alert");
 const userRoutes = require("./routes/user");
+const analyticsRoutes = require("./routes/analytics");
 
 dotenv.config();
 connectDB();
@@ -24,6 +25,7 @@ app.use(cors({
 app.use(express.json());
 
 // Routes
+app.use("/api/analytics", analyticsRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/buses", busRoutes);
 app.use("/api/routes", routeRoutes);

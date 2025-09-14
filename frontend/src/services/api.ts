@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 class ApiService {
   private baseURL: string;
@@ -12,10 +12,10 @@ class ApiService {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
-    
+
     const config: RequestInit = {
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         ...options.headers,
       },
       ...options,
@@ -23,30 +23,34 @@ class ApiService {
 
     try {
       const response = await fetch(url, config);
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        throw new Error(
+          errorData.error || `HTTP error! status: ${response.status}`
+        );
       }
 
       return await response.json();
     } catch (error) {
-      console.error('API request failed:', error);
+      console.error("API request failed:", error);
       throw error;
     }
   }
 
-  // Auth endpoints
+  // =====================
+  // AUTH ENDPOINTS
+  // =====================
   async sendOTP(phoneNumber: string, role: string, conductorId?: string) {
-    return this.request('/auth/send-otp', {
-      method: 'POST',
+    return this.request("/auth/send-otp", {
+      method: "POST",
       body: JSON.stringify({ phoneNumber, role, conductorId }),
     });
   }
 
   async verifyOTP(phoneNumber: string, otp: string) {
-    return this.request('/auth/verify-otp', {
-      method: 'POST',
+    return this.request("/auth/verify-otp", {
+      method: "POST",
       body: JSON.stringify({ phoneNumber, otp }),
     });
   }
@@ -55,9 +59,11 @@ class ApiService {
     return this.request(`/auth/profile/${userId}`);
   }
 
-  // Bus endpoints
+  // =====================
+  // BUS ENDPOINTS
+  // =====================
   async getAllBuses() {
-    return this.request('/buses');
+    return this.request("/buses");
   }
 
   async getBusesByRoute(routeNumber: string) {
@@ -70,35 +76,39 @@ class ApiService {
 
   async updateBusLocation(busId: string, lat: number, lng: number) {
     return this.request(`/buses/${busId}/location`, {
-      method: 'PUT',
+      method: "PUT",
       body: JSON.stringify({ lat, lng }),
     });
   }
 
-  async updateCrowdLevel(busId: string, crowdLevel: 'low' | 'medium' | 'high') {
+  async updateCrowdLevel(busId: string, crowdLevel: "low" | "medium" | "high") {
     return this.request(`/buses/${busId}/crowd-level`, {
-      method: 'PUT',
+      method: "PUT",
       body: JSON.stringify({ crowdLevel }),
     });
   }
 
   async updatePassengerCount(busId: string, passengerCount: number) {
     return this.request(`/buses/${busId}/passenger-count`, {
-      method: 'PUT',
+      method: "PUT",
       body: JSON.stringify({ passengerCount }),
     });
   }
 
-  // Route endpoints
+  // =====================
+  // ROUTE ENDPOINTS
+  // =====================
   async getAllRoutes() {
-    return this.request('/routes');
+    return this.request("/routes");
   }
 
   async getRouteByNumber(routeNumber: string) {
     return this.request(`/routes/${routeNumber}`);
   }
 
-  // Ticket endpoints
+  // =====================
+  // TICKET ENDPOINTS
+  // =====================
   async generateTicket(data: {
     routeNumber: string;
     fromStop: string;
@@ -106,20 +116,26 @@ class ApiService {
     passengerCount: number;
     conductorId: string;
   }) {
-    return this.request('/tickets/generate', {
-      method: 'POST',
+    return this.request("/tickets/generate", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
 
-  async getTicketsByConductor(conductorId: string, startDate?: string, endDate?: string) {
+  async getTicketsByConductor(
+    conductorId: string,
+    startDate?: string,
+    endDate?: string
+  ) {
     const params = new URLSearchParams();
-    if (startDate) params.append('startDate', startDate);
-    if (endDate) params.append('endDate', endDate);
-    
+    if (startDate) params.append("startDate", startDate);
+    if (endDate) params.append("endDate", endDate);
+
     const queryString = params.toString();
-    const endpoint = `/tickets/conductor/${conductorId}${queryString ? `?${queryString}` : ''}`;
-    
+    const endpoint = `/tickets/conductor/${conductorId}${
+      queryString ? `?${queryString}` : ""
+    }`;
+
     return this.request(endpoint);
   }
 
@@ -127,26 +143,28 @@ class ApiService {
     return this.request(`/tickets/verify/${qrCode}`);
   }
 
-  // Alert endpoints
+  // =====================
+  // ALERT ENDPOINTS
+  // =====================
   async createAlert(data: {
     busId: string;
-    type: 'emergency' | 'breakdown' | 'delay' | 'info';
+    type: "emergency" | "breakdown" | "delay" | "info";
     message: string;
     conductorId: string;
   }) {
-    return this.request('/alerts', {
-      method: 'POST',
+    return this.request("/alerts", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
 
   async getAllAlerts(resolved?: boolean) {
     const params = new URLSearchParams();
-    if (resolved !== undefined) params.append('resolved', resolved.toString());
-    
+    if (resolved !== undefined) params.append("resolved", resolved.toString());
+
     const queryString = params.toString();
-    const endpoint = `/alerts${queryString ? `?${queryString}` : ''}`;
-    
+    const endpoint = `/alerts${queryString ? `?${queryString}` : ""}`;
+
     return this.request(endpoint);
   }
 
@@ -156,13 +174,22 @@ class ApiService {
 
   async resolveAlert(alertId: string) {
     return this.request(`/alerts/${alertId}/resolve`, {
-      method: 'PUT',
+      method: "PUT",
     });
   }
 
-  // Health check
+  // =====================
+  // ANALYTICS ENDPOINTS
+  // =====================
+  async getAnalytics() {
+    return this.request("/analytics");
+  }
+
+  // =====================
+  // HEALTH CHECK
+  // =====================
   async healthCheck() {
-    return this.request('/health');
+    return this.request("/health");
   }
 }
 
