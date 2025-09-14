@@ -10,7 +10,6 @@ const generateOTP = () => {
 const sendOTP = async (phoneNumber, otp) => {
   // In a real application, this would integrate with SMS service
   console.log(`OTP for ${phoneNumber}: ${otp}`);
-  return true;
 };
 
 // Send OTP
