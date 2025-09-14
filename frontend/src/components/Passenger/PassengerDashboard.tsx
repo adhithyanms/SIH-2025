@@ -32,8 +32,9 @@ const PassengerDashboard: React.FC = () => {
   };
 
   const searchResults = searchBuses();
+ 
   const allStops = Array.from(new Set(routes.flatMap(route => route.stops.map(stop => stop.name))));
-
+  
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
       alert('Geolocation is not supported by your browser');
