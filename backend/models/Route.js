@@ -6,6 +6,11 @@ const locationSchema = new mongoose.Schema({
 });
 
 const stopSchema = new mongoose.Schema({
+  stopId: {
+    type: String,
+    required: true,
+    unique: false 
+  },
   name: {
     type: String,
     required: true
@@ -26,7 +31,11 @@ const routeSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
-  routeName: {
+  from: {
+    type: String,
+    required: true
+  },
+  to: {
     type: String,
     required: true
   },

@@ -13,6 +13,11 @@ const ConductorDashboard: React.FC = () => {
   const { user } = useAuth();
 
   const conductorBus = buses.find(bus => bus.conductorId === user?.id);
+  React.useEffect(() => {
+    if (user?.assignedRouteNumber) {
+      setSelectedRoute(user.assignedRouteNumber);
+    }
+  }, [user?.assignedRouteNumber]);
   const currentRoute = routes.find(route => route.routeNumber === selectedRoute);
 
   const tabs = [
@@ -149,7 +154,7 @@ const ConductorDashboard: React.FC = () => {
                   <TicketMachine routeNumber={selectedRoute} />
                 )}
                 {activeTab === 'route' && currentRoute && (
-                  <RouteTracker route={currentRoute} />
+                  <RouteTracker route={currentRoute} busId={conductorBus?.id || ''} />
                 )}
                 {activeTab === 'emergency' && (
                   <EmergencyAlert busId={conductorBus?.id || ''} />

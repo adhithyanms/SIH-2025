@@ -3,7 +3,9 @@ const router = express.Router();
 const {
   generateTicket,
   getTicketsByConductor,
-  verifyTicket
+  verifyTicket,
+  getStopSummary,
+  completeStopTickets
 } = require('../controllers/ticketController');
 
 // Generate ticket
@@ -14,5 +16,11 @@ router.get('/conductor/:conductorId', getTicketsByConductor);
 
 // Verify ticket
 router.get('/verify/:qrCode', verifyTicket);
+
+// Get per-stop summary for today
+router.get('/summary/:conductorId/:routeNumber', getStopSummary);
+
+// Complete tickets when crossing a stop
+router.post('/complete-stop', completeStopTickets);
 
 module.exports = router;

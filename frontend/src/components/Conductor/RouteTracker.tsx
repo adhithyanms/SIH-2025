@@ -2,15 +2,20 @@ import React, { useState, useEffect } from "react";
 import { Route } from "../../types";
 import { MapPin, Navigation, CheckCircle, Ticket } from "lucide-react";
 import { useBus } from "../../contexts/BusContext";
+import { useAuth } from "../../contexts/AuthContext";
 import { getDistanceFromLatLonInM } from "../../utils/distance";
 
 interface RouteTrackerProps {
   route: Route;
+  busId?: string;
 }
 
-const RouteTracker: React.FC<RouteTrackerProps> = ({ route }) => {
+const RouteTracker: React.FC<RouteTrackerProps> = ({ route, busId }) => {
   const [currentStopIndex, setCurrentStopIndex] = useState(0);
-  const { totalTickets } = useBus();
+  const { totalTickets, getStopSummary, completeStop, adjustPassengerCount } = useBus();
+  const { user } = useAuth();
+  const [byStop, setByStop] = useState<Record<string, number>>({});
+  const [gpsWorking, setGpsWorking] = useState(false);
 
   // 📌 GPS Tracking
   useEffect(() => {
@@ -21,6 +26,7 @@ const RouteTracker: React.FC<RouteTrackerProps> = ({ route }) => {
 
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
+        setGpsWorking(true);
         const { latitude, longitude } = position.coords;
 
         let nearestIndex = currentStopIndex;
@@ -41,12 +47,51 @@ const RouteTracker: React.FC<RouteTrackerProps> = ({ route }) => {
           console.log(`Reached stop: ${route.stops[nearestIndex].name}`);
         }
       },
-      (error) => console.error("GPS error:", error),
+      (error) => {
+        console.error("GPS error:", error);
+        setGpsWorking(false);
+      },
       { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
   }, [route, currentStopIndex]);
+
+  // Load per-stop ticket summary (today) whenever route or user changes
+  useEffect(() => {
+    const load = async () => {
+      if (!user?.id) return;
+      const res = await getStopSummary(user.id, route.routeNumber);
+      const map: Record<string, number> = {};
+      (res.byStop || []).forEach((r: any) => (map[r.toStop] = r.count));
+      setByStop(map);
+    };
+    load();
+  }, [user?.id, route.routeNumber]);
+
+  const handleCrossed = async () => {
+    if (!user?.id) return;
+    if (gpsWorking) {
+      alert("GPS is active; manual crossing is disabled. Move past the stop to auto-advance.");
+      return;
+    }
+    const stop = route.stops[currentStopIndex]?.name;
+    if (!stop) return;
+    const res = await completeStop(user.id, route.routeNumber, stop);
+    // Refresh summary after completion
+    const summary = await getStopSummary(user.id, route.routeNumber);
+    const map: Record<string, number> = {};
+    (summary.byStop || []).forEach((r: any) => (map[r.toStop] = r.count));
+    setByStop(map);
+    // Advance to next stop manually when GPS isn't available
+    setCurrentStopIndex((idx) => Math.min(idx + 1, route.stops.length - 1));
+    // Decrease bus passenger count locally if busId provided
+    try {
+      if (busId && res.impactedCount > 0) {
+        await adjustPassengerCount(busId, -res.impactedCount);
+      }
+    } catch {}
+  };
 
   return (
     <div className="space-y-6">
@@ -69,6 +114,18 @@ const RouteTracker: React.FC<RouteTrackerProps> = ({ route }) => {
             <span className="text-sm text-gray-600">Next Stop:</span>
             <div className="font-bold text-lg">{route.stops[currentStopIndex + 1]?.name || "End of Route"}</div>
           </div>
+        </div>
+        <div className="mt-4">
+          <button
+            onClick={handleCrossed}
+            disabled={gpsWorking}
+            className={`px-4 py-2 rounded-lg text-white ${gpsWorking ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+          >
+            Mark Current Stop Crossed
+          </button>
+          <p className="text-sm text-gray-600 mt-2">
+            {gpsWorking ? 'GPS active: auto-advance when reaching stops.' : 'GPS not working: you can manually mark stops as crossed.'}
+          </p>
         </div>
       </div>
 
@@ -111,6 +168,7 @@ const RouteTracker: React.FC<RouteTrackerProps> = ({ route }) => {
               <div>
                 <h5 className="font-semibold text-gray-900">{stop.name}</h5>
                 <p className="text-sm text-gray-600">Stop {index + 1} of {route.stops.length}</p>
+                <p className="text-sm text-gray-500">Tickets to this stop: {byStop[stop.name] || 0}</p>
               </div>
             </div>
           </div>

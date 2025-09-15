@@ -206,6 +206,18 @@ class ApiService {
     return this.request(`/tickets/verify/${qrCode}`);
   }
 
+  // Ticket summaries per stop and complete-stop
+  async getStopSummary(conductorId: string, routeNumber: string) {
+    return this.request(`/tickets/summary/${conductorId}/${routeNumber}`);
+  }
+
+  async completeStop(conductorId: string, routeNumber: string, stopName: string) {
+    return this.request(`/tickets/complete-stop`, {
+      method: "POST",
+      body: JSON.stringify({ conductorId, routeNumber, stopName })
+    });
+  }
+
   // =====================
   // ALERT ENDPOINTS
   // =====================
