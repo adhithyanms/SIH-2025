@@ -11,16 +11,32 @@ import {
 
 const API_URL = "http://localhost:5000/api/routes";
 
+interface Stop {
+  stopId: string;
+  name: string;
+  location: { lat: number; lng: number };
+}
+
+interface RouteType {
+  _id: string;
+  routeNumber: string;
+  from: string;
+  to: string;
+  isActive: boolean;
+  stops: Stop[];
+}
+
 const RouteManagement: React.FC = () => {
-  const [routes, setRoutes] = useState<any[]>([]);
+  const [routes, setRoutes] = useState<RouteType[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [editingRouteId, setEditingRouteId] = useState<string | null>(null);
 
-  const [newRoute, setNewRoute] = useState({
+  const [newRoute, setNewRoute] = useState<Omit<RouteType, "_id">>({
     routeNumber: "",
-    routeName: "",
+    from: "",
+    to: "",
     isActive: true,
-    stops: [{ name: "", location: { lat: 0, lng: 0 } }],
+    stops: [{ stopId: "", name: "", location: { lat: 0, lng: 0 } }],
   });
 
   useEffect(() => {
@@ -37,11 +53,14 @@ const RouteManagement: React.FC = () => {
     }
   };
 
-  // stops
+  // Stops
   const handleAddStop = () => {
     setNewRoute((prev) => ({
       ...prev,
-      stops: [...prev.stops, { name: "", location: { lat: 0, lng: 0 } }],
+      stops: [
+        ...prev.stops,
+        { stopId: "", name: "", location: { lat: 0, lng: 0 } },
+      ],
     }));
   };
 
@@ -54,20 +73,20 @@ const RouteManagement: React.FC = () => {
 
   const handleStopChange = (
     index: number,
-    field: "name" | "lat" | "lng",
+    field: "stopId" | "name" | "lat" | "lng",
     value: string
   ) => {
     setNewRoute((prev) => ({
       ...prev,
       stops: prev.stops.map((stop, i) =>
         i === index
-          ? field === "name"
-            ? { ...stop, name: value }
+          ? field === "stopId" || field === "name"
+            ? { ...stop, [field]: value }
             : {
                 ...stop,
                 location: {
                   ...stop.location,
-                  [field]: parseFloat(value) || 0,
+                  [field]: value === "" ? 0 : parseFloat(value),
                 },
               }
           : stop
@@ -75,8 +94,24 @@ const RouteManagement: React.FC = () => {
     }));
   };
 
-  // create / update
+  const validateStops = (): boolean => {
+    const ids = newRoute.stops.map((s) => s.stopId.trim());
+    const uniqueIds = new Set(ids);
+    if (ids.some((id) => id === "")) {
+      alert("Each stop must have a stopId");
+      return false;
+    }
+    if (ids.length !== uniqueIds.size) {
+      alert("Stop IDs must be unique within a route");
+      return false;
+    }
+    return true;
+  };
+
+  // Create / Update
   const handleSaveRoute = async () => {
+    if (!validateStops()) return;
+
     try {
       if (editingRouteId) {
         const res = await fetch(`${API_URL}/${editingRouteId}`, {
@@ -126,13 +161,15 @@ const RouteManagement: React.FC = () => {
     }
   };
 
-  const handleEditRoute = (route: any) => {
+  const handleEditRoute = (route: RouteType) => {
     setEditingRouteId(route._id);
     setNewRoute({
       routeNumber: route.routeNumber,
-      routeName: route.routeName,
+      from: route.from,
+      to: route.to,
       isActive: route.isActive ?? true,
-      stops: route.stops.map((s: any) => ({
+      stops: route.stops.map((s) => ({
+        stopId: s.stopId,
         name: s.name,
         location: { lat: s.location.lat, lng: s.location.lng },
       })),
@@ -145,9 +182,10 @@ const RouteManagement: React.FC = () => {
     setEditingRouteId(null);
     setNewRoute({
       routeNumber: "",
-      routeName: "",
+      from: "",
+      to: "",
       isActive: true,
-      stops: [{ name: "", location: { lat: 0, lng: 0 } }],
+      stops: [{ stopId: "", name: "", location: { lat: 0.0, lng: 0.0 } }],
     });
   };
 
@@ -178,7 +216,7 @@ const RouteManagement: React.FC = () => {
         </div>
 
         <div className="bg-white border border-gray-200 rounded-xl p-6">
-          <div className="grid md:grid-cols-2 gap-6 mb-6">
+          <div className="grid md:grid-cols-3 gap-6 mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Route Number
@@ -193,24 +231,35 @@ const RouteManagement: React.FC = () => {
                   }))
                 }
                 placeholder="e.g., 103"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Route Name
+                From
               </label>
               <input
                 type="text"
-                value={newRoute.routeName}
+                value={newRoute.from}
                 onChange={(e) =>
-                  setNewRoute((prev) => ({
-                    ...prev,
-                    routeName: e.target.value,
-                  }))
+                  setNewRoute((prev) => ({ ...prev, from: e.target.value }))
                 }
-                placeholder="e.g., Downtown - Airport Express"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="e.g., Downtown"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                To
+              </label>
+              <input
+                type="text"
+                value={newRoute.to}
+                onChange={(e) =>
+                  setNewRoute((prev) => ({ ...prev, to: e.target.value }))
+                }
+                placeholder="e.g., Airport"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
               />
             </div>
           </div>
@@ -242,6 +291,15 @@ const RouteManagement: React.FC = () => {
                     </div>
                     <input
                       type="text"
+                      value={stop.stopId}
+                      onChange={(e) =>
+                        handleStopChange(index, "stopId", e.target.value)
+                      }
+                      placeholder={`Stop ${index + 1} ID`}
+                      className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    />
+                    <input
+                      type="text"
                       value={stop.name}
                       onChange={(e) =>
                         handleStopChange(index, "name", e.target.value)
@@ -260,9 +318,9 @@ const RouteManagement: React.FC = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-3 pl-11">
                     <input
-                      type="text"
-                      inputMode="decimal"
-                      value={stop.location.lat || ""}
+                      type="number"
+                      step="any"
+                      value={stop.location.lat}
                       onChange={(e) =>
                         handleStopChange(index, "lat", e.target.value)
                       }
@@ -270,9 +328,9 @@ const RouteManagement: React.FC = () => {
                       className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                     />
                     <input
-                      type="text"
-                      inputMode="decimal"
-                      value={stop.location.lng || ""}
+                      type="number"
+                      step="any"
+                      value={stop.location.lng}
                       onChange={(e) =>
                         handleStopChange(index, "lng", e.target.value)
                       }
@@ -289,7 +347,7 @@ const RouteManagement: React.FC = () => {
     );
   }
 
-  // list view
+  // List view
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -300,9 +358,10 @@ const RouteManagement: React.FC = () => {
             setEditingRouteId(null);
             setNewRoute({
               routeNumber: "",
-              routeName: "",
+              from: "",
+              to: "",
               isActive: true,
-              stops: [{ name: "", location: { lat: 0, lng: 0 } }],
+              stops: [{ stopId: "", name: "", location: { lat: 0, lng: 0 } }],
             });
           }}
           className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center space-x-2"
@@ -327,7 +386,9 @@ const RouteManagement: React.FC = () => {
                   <h4 className="text-lg font-semibold text-gray-900">
                     Route #{route.routeNumber}
                   </h4>
-                  <p className="text-gray-600">{route.routeName}</p>
+                  <p className="text-gray-600">
+                    {route.from} → {route.to}
+                  </p>
                 </div>
               </div>
 
@@ -363,7 +424,7 @@ const RouteManagement: React.FC = () => {
                   Route Stops ({route.stops.length})
                 </h5>
                 <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {route.stops.map((stop: any, index: number) => (
+                  {route.stops.map((stop, index) => (
                     <div
                       key={index}
                       className="flex items-center space-x-3 p-2 bg-gray-50 rounded-lg"
@@ -371,7 +432,9 @@ const RouteManagement: React.FC = () => {
                       <div className="w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
                         {index + 1}
                       </div>
-                      <span className="text-gray-900">{stop.name}</span>
+                      <span className="text-gray-900">
+                        [{stop.stopId}] {stop.name}
+                      </span>
                       <span className="text-xs text-gray-500">
                         ({stop.location.lat}, {stop.location.lng})
                       </span>
@@ -382,18 +445,12 @@ const RouteManagement: React.FC = () => {
 
               <div className="space-y-4">
                 <div>
-                  <div className="text-sm text-gray-600 mb-1">Total Distance</div>
-                  <div className="font-semibold text-gray-900">~25 km</div>
+                  <div className="text-sm text-gray-600 mb-1">From</div>
+                  <div className="font-semibold text-gray-900">{route.from}</div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-600 mb-1">
-                    Average Journey Time
-                  </div>
-                  <div className="font-semibold text-gray-900">45 minutes</div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-600 mb-1">Active Buses</div>
-                  <div className="font-semibold text-gray-900">3 buses</div>
+                  <div className="text-sm text-gray-600 mb-1">To</div>
+                  <div className="font-semibold text-gray-900">{route.to}</div>
                 </div>
               </div>
             </div>
