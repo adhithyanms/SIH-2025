@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const Access = require('../models/access');
 const crypto = require('crypto');
 
 // Generate OTP
@@ -15,17 +16,22 @@ const sendOTP = async (phoneNumber, otp) => {
 // Send OTP
 exports.sendOTP = async (req, res) => {
   try {
-    const { phoneNumber, role, conductorId } = req.body;
+    const { phoneNumber } = req.body;
 
     // Validate phone number
     if (!phoneNumber || phoneNumber.length !== 10) {
       return res.status(400).json({ error: 'Please enter a valid 10-digit phone number' });
     }
 
-    // Validate conductor ID for conductors
-    if (role === 'conductor' && !conductorId) {
-      return res.status(400).json({ error: 'Conductor ID is required' });
-    }
+    // Determine effective role based on Access mapping
+    // Access roles are capitalized ("Admin" | "Conductor")
+    // User model expects lowercase ('admin' | 'conductor' | 'passenger')
+    const accessEntry = await Access.findOne({ phoneNumber });
+    const effectiveRole = accessEntry
+      ? (accessEntry.role === 'Admin' ? 'admin' : 'conductor')
+      : 'passenger';
+    const effectiveName = accessEntry?.name || `${effectiveRole.charAt(0).toUpperCase()}${effectiveRole.slice(1)} User`;
+    const effectiveConductorId = accessEntry && accessEntry.role === 'Conductor' ? accessEntry.conductorId : undefined;
 
     const otp = generateOTP();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
@@ -36,14 +42,22 @@ exports.sendOTP = async (req, res) => {
     if (user) {
       // Update OTP
       user.otp = { code: otp, expiresAt };
+      // Sync role/name/conductorId from Access mapping
+      user.role = effectiveRole;
+      user.name = effectiveName;
+      if (effectiveRole === 'conductor') {
+        user.conductorId = effectiveConductorId;
+      } else {
+        user.conductorId = undefined;
+      }
       await user.save();
     } else {
       // Create new user
       user = new User({
         phoneNumber,
-        role,
-        conductorId: role === 'conductor' ? conductorId : undefined,
-        name: `${role.charAt(0).toUpperCase() + role.slice(1)} User`,
+        role: effectiveRole,
+        conductorId: effectiveRole === 'conductor' ? effectiveConductorId : undefined,
+        name: effectiveName,
         otp: { code: otp, expiresAt }
       });
       await user.save();
