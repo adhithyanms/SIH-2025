@@ -108,13 +108,16 @@ exports.verifyOTP = async (req, res) => {
     await user.save();
 
     // Return user data (excluding sensitive information)
+    // Also include assignedRouteNumber for conductors if present in Access mapping
+    const accessEntry = await (await require('../models/access').findOne({ phoneNumber })).populate('assignedRoute', 'routeNumber');
     const userData = {
       id: user._id,
       phoneNumber: user.phoneNumber,
       role: user.role,
       name: user.name,
       conductorId: user.conductorId,
-      isVerified: user.isVerified
+      isVerified: user.isVerified,
+      assignedRouteNumber: accessEntry?.assignedRoute?.routeNumber || undefined
     };
 
     res.json({ 

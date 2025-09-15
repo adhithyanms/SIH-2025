@@ -125,3 +125,77 @@ exports.verifyTicket = async (req, res) => {
     res.status(500).json({ error: 'Failed to verify ticket' });
   }
 };
+
+// Get ticket summary by destination stop for a conductor and route (today)
+exports.getStopSummary = async (req, res) => {
+  try {
+    const { conductorId, routeNumber } = req.params;
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const match = {
+      conductorId,
+      routeNumber,
+      isUsed: false,
+      createdAt: { $gte: startOfDay, $lte: endOfDay },
+    };
+
+    const aggregation = await Ticket.aggregate([
+      { $match: match },
+      { $group: { _id: "$toStop", count: { $sum: "$passengerCount" } } },
+      { $project: { _id: 0, toStop: "$_id", count: 1 } },
+      { $sort: { toStop: 1 } }
+    ]);
+
+    const total = aggregation.reduce((sum, item) => sum + item.count, 0);
+    res.json({ total, byStop: aggregation });
+  } catch (error) {
+    console.error('Get stop summary error:', error);
+    res.status(500).json({ error: 'Failed to fetch stop summary' });
+  }
+};
+
+// Mark tickets to a stop as completed (used) for a conductor and route (today)
+exports.completeStopTickets = async (req, res) => {
+  try {
+    const { conductorId, routeNumber, stopName } = req.body;
+    if (!conductorId || !routeNumber || !stopName) {
+      return res.status(400).json({ error: 'conductorId, routeNumber and stopName are required' });
+    }
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Count affected first
+    const toUpdate = await Ticket.find({
+      conductorId,
+      routeNumber,
+      toStop: stopName,
+      isUsed: false,
+      createdAt: { $gte: startOfDay, $lte: endOfDay },
+    });
+
+    const impactedCount = toUpdate.reduce((sum, t) => sum + (t.passengerCount || 0), 0);
+
+    const result = await Ticket.updateMany(
+      {
+        conductorId,
+        routeNumber,
+        toStop: stopName,
+        isUsed: false,
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+      },
+      { $set: { isUsed: true } }
+    );
+
+    res.json({ message: 'Stop tickets completed', modified: result.modifiedCount || 0, impactedCount });
+  } catch (error) {
+    console.error('Complete stop tickets error:', error);
+    res.status(500).json({ error: 'Failed to complete stop tickets' });
+  }
+};

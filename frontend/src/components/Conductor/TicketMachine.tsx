@@ -70,8 +70,8 @@ const TicketMachine: React.FC<TicketMachineProps> = ({ routeNumber }) => {
 
       setGeneratedTicket(ticket);
 
-      // ✅ Update global ticket count
-      addTicket();
+      // ✅ Update global ticket count and per-stop tally
+      addTicket(toStop, passengerCount);
     } catch (error: any) {
       alert(error.message || 'Failed to generate ticket');
     } finally {

@@ -6,9 +6,12 @@ interface BusContextType {
   buses: Bus[];
   routes: Route[];
   totalTickets: number;
-  addTicket: () => void;
+  addTicket: (toStop?: string, count?: number) => void;
+  getStopSummary: (conductorId: string, routeNumber: string) => Promise<{ total: number; byStop: { toStop: string; count: number }[] }>;
+  completeStop: (conductorId: string, routeNumber: string, stopName: string) => Promise<{ impactedCount: number }>;
   updateBusLocation: (busId: string, location: { lat: number; lng: number }) => Promise<void>;
   updateCrowdLevel: (busId: string, level: "low" | "medium" | "high") => Promise<void>;
+  adjustPassengerCount: (busId: string, delta: number) => Promise<void>;
   getBusByRoute: (routeNumber: string) => Bus[];
   refreshBuses: () => Promise<void>;
   refreshRoutes: () => Promise<void>;
@@ -29,6 +32,7 @@ export const BusProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [buses, setBuses] = useState<Bus[]>([]);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [totalTickets, setTotalTickets] = useState(0);
+  const [perStopTickets, setPerStopTickets] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(false);
 
   // Load initial data
@@ -75,7 +79,31 @@ export const BusProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const addTicket = () => setTotalTickets((prev) => prev + 1);
+  const addTicket = (toStop?: string, count: number = 1) => {
+    setTotalTickets((prev) => prev + count);
+    if (toStop) {
+      setPerStopTickets((prev) => ({ ...prev, [toStop]: (prev[toStop] || 0) + count }));
+    }
+  };
+
+  const getStopSummary = async (conductorId: string, routeNumber: string) => {
+    const res = await apiService.getStopSummary(conductorId, routeNumber);
+    const map: Record<string, number> = {};
+    (res.byStop || []).forEach((row: any) => { map[row.toStop] = row.count; });
+    setPerStopTickets(map);
+    setTotalTickets(res.total || 0);
+    return res;
+  };
+
+  const completeStop = async (conductorId: string, routeNumber: string, stopName: string) => {
+    const res = await apiService.completeStop(conductorId, routeNumber, stopName);
+    const impacted = res.impactedCount || 0;
+    if (impacted > 0) {
+      setTotalTickets((prev) => Math.max(0, prev - impacted));
+      setPerStopTickets((prev) => ({ ...prev, [stopName]: Math.max(0, (prev[stopName] || 0) - impacted) }));
+    }
+    return { impactedCount: impacted };
+  };
 
   const updateBusLocation = async (busId: string, location: { lat: number; lng: number }) => {
     try {
@@ -101,6 +129,19 @@ export const BusProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const adjustPassengerCount = async (busId: string, delta: number) => {
+    const target = buses.find(b => b.id === busId);
+    const current = target?.passengerCount || 0;
+    const next = Math.max(0, current + delta);
+    try {
+      await apiService.updatePassengerCount(busId, next);
+      setBuses((prev) => prev.map(b => b.id === busId ? { ...b, passengerCount: next } : b));
+    } catch (error) {
+      console.error('Failed to adjust passenger count:', error);
+      throw error;
+    }
+  };
+
   const getBusByRoute = (routeNumber: string) => {
     return buses.filter((bus) => bus.routeNumber === routeNumber);
   };
@@ -112,8 +153,11 @@ export const BusProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         routes,
         totalTickets,
         addTicket,
+        getStopSummary,
+        completeStop,
         updateBusLocation,
         updateCrowdLevel,
+        adjustPassengerCount,
         getBusByRoute,
         refreshBuses,
         refreshRoutes,
