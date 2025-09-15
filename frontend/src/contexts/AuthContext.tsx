@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User } from '../types';
+import { User } from '../types/index';
 import apiService from '../services/api';
 
 interface AuthContextType {
   user: User | null;
-  login: (phoneNumber: string, otp: string, role: User['role'], conductorId?: string) => Promise<void>;
-  sendOTP: (phoneNumber: string, role: User['role'], conductorId?: string) => Promise<void>;
+  login: (phoneNumber: string, otp: string) => Promise<void>;
+  sendOTP: (phoneNumber: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -32,10 +32,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const sendOTP = async (phoneNumber: string, role: User['role'], conductorId?: string) => {
+  const sendOTP = async (phoneNumber: string) => {
     setIsLoading(true);
     try {
-      await apiService.sendOTP(phoneNumber, role, conductorId);
+      await apiService.sendOTP(phoneNumber);
     } catch (error) {
       throw error;
     } finally {
@@ -43,7 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = async (phoneNumber: string, otp: string, role: User['role'], conductorId?: string) => {
+  const login = async (phoneNumber: string, otp: string) => {
     setIsLoading(true);
     
     try {

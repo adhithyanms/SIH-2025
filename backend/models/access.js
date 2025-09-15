@@ -6,9 +6,9 @@ const accessSchema = new mongoose.Schema(
     phoneNumber: { type: String, required: true, unique: true },
     conductorId: { type: String },
     role: { type: String, enum: ["Admin", "Conductor"], required: true },
-    assignedBus: {
+    assignedRoute: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Bus",
+      ref: "Route",
       default: null,
     },
   },
