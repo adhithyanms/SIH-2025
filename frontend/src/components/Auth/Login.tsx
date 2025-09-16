@@ -12,22 +12,42 @@ const Login: React.FC<LoginProps> = ({ onBack }) => {
   
   const { login, sendOTP, isLoading } = useAuth();
 
-  const handleSendOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+  // const handleSendOTP = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   setError('');
     
-    if (phoneNumber.length !== 10) {
-      setError('Please enter a valid 10-digit phone number');
-      return;
-    }
+  //   if (phoneNumber.length !== 10) {
+  //     setError('Please enter a valid 10-digit phone number');
+  //     return;
+  //   }
 
-    try {
-      await sendOTP(phoneNumber);
-      setStep('otp');
-    } catch (err: any) {
-      setError(err.message || 'Failed to send OTP. Please try again.');
-    }
-  };
+  //   try {
+  //     await sendOTP(phoneNumber);
+  //     setStep('otp');
+  //   } catch (err: any) {
+  //     setError(err.message || 'Failed to send OTP. Please try again.');
+  //   }
+  // };
+
+  const handleSendOTP = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError('');
+
+  if (phoneNumber.length !== 10) {
+    setError('Please enter a valid 10-digit phone number');
+    return;
+  }
+
+  try {
+    const res = await sendOTP(phoneNumber);
+    // ✅ log OTP for testing
+    console.log('OTP response', res);
+    setStep('otp');
+  } catch (err: any) {
+    setError(err.message || 'Failed to send OTP. Please try again.');
+  }
+};
+
 
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();

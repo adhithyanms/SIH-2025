@@ -32,16 +32,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const sendOTP = async (phoneNumber: string) => {
-    setIsLoading(true);
-    try {
-      await apiService.sendOTP(phoneNumber);
-    } catch (error) {
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+ const sendOTP = async (phoneNumber: string) => {
+  setIsLoading(true);
+  try {
+    const res = await apiService.sendOTP(phoneNumber);
+    return res; // ✅ return response with OTP
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   const login = async (phoneNumber: string, otp: string) => {
     setIsLoading(true);
